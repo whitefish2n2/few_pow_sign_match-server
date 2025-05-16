@@ -21,6 +21,11 @@ class MatchQueueManager {
         }
         println("Cancelled: $playerId")
     }
+    fun remove(playerId: String){
+        for(q in queue) {
+            q.value.remove(playerId)
+        }
+    }
     var serverIdx = 0;
 
     fun makeMatch(gameMode: GameMode): List<NewPlayerDto>? {

@@ -16,7 +16,7 @@ class MatchController(
     var spreadIndex: Int = 0
     @GetMapping("/matching")
     fun matching(authentication: Authentication, gameMode: GameMode): Any {
-        val player = matchService.getNewPlayerDto(authentication.name)
+        val player = matchService.CreateNewPlayerDto(authentication.name)
         matchQueueManager.enqueue(gameMode,authentication.name,player)
         return ResponseEntity.ok("")
         /*

@@ -14,4 +14,7 @@ class Session(val gameId:String,val runningOn:Dedicated) {
         score = ""
         playTime = LocalDateTime.now()
     }
+    fun Update(){
+
+    }
 }

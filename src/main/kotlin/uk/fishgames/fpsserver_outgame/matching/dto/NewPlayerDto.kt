@@ -6,4 +6,5 @@ import kotlinx.serialization.Serializable
 data class NewPlayerDto (
     val id: String,
     val name: String,
+    val key:String,
 )
