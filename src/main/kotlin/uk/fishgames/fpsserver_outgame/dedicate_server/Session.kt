@@ -3,7 +3,7 @@ package uk.fishgames.fpsserver_outgame.dedicate_server
 import uk.fishgames.fpsserver_outgame.matching.dto.PlayerDto
 import java.time.LocalDateTime
 
-class Session(val gameId:String,val runningOn:Dedicated) {
+class Session(val gameId:String,val runningOn:Dedicated, val ConnectKey:String,) {
     var status: ServerStatus = ServerStatus.Idle
     val playerLists = ArrayList<PlayerDto>()
     var score:String = "0:0"

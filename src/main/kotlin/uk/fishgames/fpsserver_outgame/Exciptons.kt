@@ -5,6 +5,8 @@ open class BaseException(
     message: String
 ) : RuntimeException(message)
 
+class TestException(message: String = "오류 출력 테스트"):
+    BaseException(1,message)
 // 로그인 실패
 class SignInFailedException(message: String = "아이디 또는 비밀번호가 일치하지 않습니다.") :
     BaseException(4001, message)

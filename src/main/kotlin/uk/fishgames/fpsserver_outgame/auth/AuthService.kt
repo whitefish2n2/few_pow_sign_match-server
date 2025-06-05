@@ -1,5 +1,7 @@
 package uk.fishgames.fpsserver_outgame.auth
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import uk.fishgames.fpsserver_outgame.*
 import uk.fishgames.fpsserver_outgame.auth.dto.RefreshDto
@@ -20,8 +22,9 @@ import java.time.ZonedDateTime
 class AuthService(
     private val jwtUtil: JwtUtil,
     private val playerRepo: PlayerRepository,
-    private val refreshTokenRepo: RefreshTokenRepository
+    private val refreshTokenRepo: RefreshTokenRepository,
 ) {
+    private val logger = LoggerFactory.getLogger(AuthService::class.java)
     fun signIn(info: SignInDto): SignInResponseDto {
         try {
             val player: PlayerDataEntity = playerRepo.findFirstById(info.id) ?: throw PlayerNotFoundException()
@@ -32,6 +35,7 @@ class AuthService(
                 return SignInResponseDto(jwt = jwt, refreshToken = token)
             } else throw PlayerNotFoundException()
         } catch (e: Exception) {
+            logger.error("error while signing in: ${info.id}", e)
             throw e
         }
     }
@@ -46,6 +50,7 @@ class AuthService(
             playerRepo.save(newEntity)
             return newEntity
         } catch (e: Exception) {
+            e.printStackTrace()
             throw e
         }
     }
@@ -56,7 +61,7 @@ class AuthService(
             val id = jwtUtil.getUserIdFromToken(info.jwt)
             return jwtUtil.createToken(id)
         } catch (e: Exception) {
-            e.printStackTrace()
+            logger.error("error while refresh jwt.", e)
             throw InvalidJwtException()
         }
     }
@@ -74,6 +79,7 @@ class AuthService(
             refreshTokenRepo.save(newEntity)
             return uuid
         } catch (e: Exception) {
+            logger.error("error while create refresh token.", e)
             throw e
         }
     }

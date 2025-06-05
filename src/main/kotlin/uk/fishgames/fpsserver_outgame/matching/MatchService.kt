@@ -19,9 +19,14 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.encodeToString
 import org.springframework.web.socket.CloseStatus
 import org.springframework.web.socket.TextMessage
+import uk.fishgames.fpsserver_outgame.matching.dto.MapEnum
 import uk.fishgames.fpsserver_outgame.matching.dto.MatchFoundDto
+import uk.fishgames.fpsserver_outgame.matching.dto.PlayerDto
 import uk.fishgames.fpsserver_outgame.matching.dto.WsEventDto
 import uk.fishgames.fpsserver_outgame.matching.dto.WsEventType
+import java.sql.Time
+import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 
 @Service
 class MatchService(
@@ -63,16 +68,21 @@ class MatchService(
 
         tryMakeMatch(mode)
     }
+
+    val random = Random(TimeUnit.MICROSECONDS.toSeconds(Random.nextLong()))
     fun tryMakeMatch(mode: GameMode): Any? {
         val target = getDediServer()?:return null
 
         val players = matchQueueManager.makeMatch(mode) ?: return null
 
-        val map = "nomalmap"
 
-        val gameId = FishUtil.uuid(target.ip)
+        val map = MapEnum.entries.get(random.nextInt(0,MapEnum.entries.size))//랜덤 맵 지정이에요
 
-        val gameSetupBoddari = GameSetupBoddari(gameId,players,mode, map)
+        val gameId = FishUtil.uuid(target.ip)//랜덤 게임 id 생성이에요
+
+        val connectKey = FishUtil.hash(FishUtil.uuid(gameId))//랜덤 클라이언트->서버 커넥트 키 생성이에요
+
+        val gameSetupBoddari = GameSetupBoddari(gameId,players,mode, map, connectKey)
 
         logger.info { "try make session to ${target.serverUrl}/makesession" }
         logger.info { gameSetupBoddari.toString() }
@@ -90,17 +100,23 @@ class MatchService(
                 .retrieve()
                 .bodyToMono(String::class.java)
                 .doOnSuccess {
+                    var playerList: ArrayList<PlayerDto> = arrayListOf()
+                    for(p in players){
+                        playerList.add(PlayerDto(p.id, p.name,0,0));
+                    }
                     val newSession = Session(
                         gameId = gameSetupBoddari.gameId,
-                        runningOn = target
+                        runningOn = target,
+                        ConnectKey = connectKey,
                     )
-                    val data = MatchFoundDto(newSession.gameId,newSession.runningOn.ip, map, players)
+                    val data = MatchFoundDto(newSession.gameId, newSession.ConnectKey
+                        ,newSession.runningOn.ip, map, players)
                     val dto = WsEventDto(WsEventType.MatchFound.toString(), Json.encodeToString(data))
                     val playerNotifyDto = Json.encodeToString(dto)
                     for(p in players){
                         if (registry.get(p.id)?.isOpen == true)
                         {
-                            println("removing ${p.id}")
+                            println("containing ${p.id}")
                             registry.get(p.id)?.sendMessage(TextMessage(playerNotifyDto))
                             registry.get(p.id)?.close(CloseStatus.NORMAL)
                             registry.remove(p.id)

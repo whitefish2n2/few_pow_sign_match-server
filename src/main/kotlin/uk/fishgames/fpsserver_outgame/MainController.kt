@@ -10,4 +10,8 @@ class MainController(
     fun getText(): String {
         return "hello from fish"
     }
+    @GetMapping("/givemeerror")
+    fun giveError(): Any {
+        throw TestException();
+    }
 }
