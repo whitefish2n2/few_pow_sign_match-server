@@ -14,10 +14,11 @@ class MatchController(
     private val matchService: MatchService,
 ) {
     var spreadIndex: Int = 0
+    @Deprecated("use websocket matching service instead this")
     @GetMapping("/matching")
     fun matching(authentication: Authentication, gameMode: GameMode): Any {
-        val player = matchService.CreateNewPlayerDto(authentication.name)
-        matchQueueManager.enqueue(gameMode,authentication.name,player)
+        //val player = matchService.CreatePlayerDtoFromDataBase(authentication.name)
+        //matchQueueManager.enqueue(gameMode,authentication.name,player)
         return ResponseEntity.ok("")
         /*
         if (dedicatedClients.isEmpty()) {

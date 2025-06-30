@@ -5,16 +5,14 @@ import org.springframework.http.server.ServerHttpResponse
 import org.springframework.http.server.ServletServerHttpRequest
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.WebSocketHandler
-import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.server.HandshakeInterceptor
-import uk.fishgames.fpsserver_outgame.InvalidJwtException
 import uk.fishgames.fpsserver_outgame.security.JwtUtil
 import java.lang.Exception
 
+//웹소켓 auth 인터럽터(ws 요청에 spring security 대용으로 사용, 연결할때(핸드셰이킹 단계) 한번 확인. auth 인증 실패시 세션 close
 @Component
 class AuthHandshakeInterceptor(
-    val jwtUtil: JwtUtil,
-    val matchQueueManager: MatchQueueManager
+    val jwtUtil: JwtUtil
 ) : HandshakeInterceptor {
     override fun beforeHandshake(
         request: ServerHttpRequest,
@@ -23,13 +21,13 @@ class AuthHandshakeInterceptor(
         attributes: MutableMap<String, Any>
     ): Boolean {
         println("Handshake started: $request")
+        //user Id url 파라미터에서 빼오기
         try{
             val servletRequest = (request as ServletServerHttpRequest).servletRequest
             val token = servletRequest.getParameter("token") ?: return false
             if(!jwtUtil.validateToken(token))return false
             val userId = jwtUtil.getUserIdFromToken(token)
             attributes["userId"] = userId
-            attributes["gameMode"] = servletRequest.getParameter("gameMode")
             return true
         }catch(e: Exception){
             return false

@@ -1,8 +1,15 @@
 package uk.fishgames.fpsserver_outgame.matching.dto
 
+import kotlinx.serialization.Serializable
+import org.springframework.web.socket.WebSocketSession
+
+@Serializable
 class PlayerDto (
     val id: String,
     val name: String,
+    var key:String,
     var kill:Int,
-    var death:Int
+    var death:Int,
+    var matchWebsocket: WebSocketSession?
+
 )

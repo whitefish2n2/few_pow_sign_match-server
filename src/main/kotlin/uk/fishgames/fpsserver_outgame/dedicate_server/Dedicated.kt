@@ -7,7 +7,3 @@ class Dedicated(val id:String, val ip:String,var session:ArrayList<Session> = ar
     fun updateStatus(){
     }
 }
-enum class ServerStatus{
-    Playing,
-    Idle
-}

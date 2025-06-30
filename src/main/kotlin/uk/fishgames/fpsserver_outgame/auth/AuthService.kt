@@ -1,6 +1,5 @@
 package uk.fishgames.fpsserver_outgame.auth
 
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import uk.fishgames.fpsserver_outgame.*
@@ -9,6 +8,7 @@ import uk.fishgames.fpsserver_outgame.auth.Entity.PlayerDataEntity
 import uk.fishgames.fpsserver_outgame.auth.Entity.RefreshTokenEntity
 import uk.fishgames.fpsserver_outgame.auth.dto.SignInDto
 import uk.fishgames.fpsserver_outgame.auth.dto.SignInResponseDto
+import uk.fishgames.fpsserver_outgame.auth.dto.SignInWithRefreshDto
 import uk.fishgames.fpsserver_outgame.auth.dto.SignUpDto
 import uk.fishgames.fpsserver_outgame.auth.repo.PlayerRepository
 import uk.fishgames.fpsserver_outgame.auth.repo.RefreshTokenRepository
@@ -33,15 +33,33 @@ class AuthService(
                 val token = createRefreshToken(player)
                 val jwt = jwtUtil.createToken(player.id)
                 return SignInResponseDto(jwt = jwt, refreshToken = token)
-            } else throw PlayerNotFoundException()
+            } else throw LoginPasswordNotMatchException()
         } catch (e: Exception) {
             logger.error("error while signing in: ${info.id}", e)
             throw e
         }
     }
 
+    fun signInWithRefreshToken(info: SignInWithRefreshDto): SignInResponseDto {
+        try {
+            if(!isValidRefreshToken(info.refreshToken))
+                throw InvalidTokenException()
+            val r = getIdFromRefreshToken(info.refreshToken)
+            if(r != null) {
+                val player: PlayerDataEntity = playerRepo.findFirstById(r) ?: throw PlayerNotFoundException()
+                val token = createRefreshToken(player)
+                val jwt = jwtUtil.createToken(player.id)
+                return SignInResponseDto(jwt = jwt, refreshToken = token)
+            } else throw PlayerNotFoundException()
+
+        } catch (e: Exception) {
+            logger.error("error while sign in with refresh token", e)
+            throw e
+        }
+    }
+
     fun signUp(info: SignUpDto): PlayerDataEntity? {
-        if (!isValidSignUpId(info.id)) throw AlreadyExistsException()
+        if (!isValidSignUpId(info.id)) throw AlreadyExistsIdException()
         val newEntity = PlayerDataEntity()
         newEntity.id = info.id
         newEntity.password = FishUtil.hash(info.password)
@@ -91,5 +109,9 @@ class AuthService(
     private fun isValidRefreshToken(token: String): Boolean {
         val t: RefreshTokenEntity? = refreshTokenRepo.findFirstByToken(token)
         return !(t == null || t.expireTime!! < Instant.now())
+    }
+    private fun getIdFromRefreshToken(token: String): String? {
+        val t: RefreshTokenEntity? = refreshTokenRepo.findFirstByToken(token)
+        return t?.id
     }
 }

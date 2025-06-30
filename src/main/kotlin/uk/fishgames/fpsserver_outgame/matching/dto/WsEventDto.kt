@@ -1,12 +1,24 @@
 package uk.fishgames.fpsserver_outgame.matching.dto
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Serializer
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
 data class WsEventDto(
-    val Type: String,
-    val Message: String
+    val Type: MatchWsEventType,
+    val Message: JsonElement?,
 ){
-    fun typeEnum(): WsEventType = WsEventType.valueOf(Type)
+    companion object {
+        fun ensureEnqueue(dto: EnsureMatchDto) : String{
+            return Json.encodeToString(
+                WsEventDto(MatchWsEventType.EnsureEnqueueMatch, Json.encodeToJsonElement(dto))
+        )
+        }
+        val pong: String = Json.encodeToString(
+            WsEventDto(MatchWsEventType.Pong, Json.encodeToJsonElement("Pong"))
+        )
+    }
 }

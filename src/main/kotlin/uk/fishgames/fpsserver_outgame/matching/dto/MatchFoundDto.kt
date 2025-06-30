@@ -5,8 +5,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class MatchFoundDto (
     val gameId:String,
-    val sessionConnectKey:String,
+    val sessionVerifyKey:String,
+    val sessionIndex:String,
     val url:String,
     val map: MapEnum,
-    val players:List<NewPlayerDto>,
+    val players:List<DedicatedNewPlayerDto>,
 )

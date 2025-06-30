@@ -15,5 +15,8 @@ class FishUtil {
             val str = s+Instant.now().epochSecond.toString()
             return UUID.nameUUIDFromBytes(str.toByteArray()).toString()
         }
+        fun randomUUID(): String {
+            return UUID.randomUUID().toString()
+        }
     }
 }
