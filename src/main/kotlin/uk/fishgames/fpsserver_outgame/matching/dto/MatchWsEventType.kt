@@ -14,6 +14,7 @@ enum class MatchWsEventType {
     Pong,
     EnsureEnqueueMatch,
     MatchFound,
+    NotifyCharacterChanged,
 
     Cancel,
 

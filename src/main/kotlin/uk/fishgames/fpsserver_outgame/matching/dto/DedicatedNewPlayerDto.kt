@@ -11,8 +11,8 @@ data class DedicatedNewPlayerDto (
 
 ){
     companion object{
-        fun from(dto: PlayerDto): DedicatedNewPlayerDto{
-            return DedicatedNewPlayerDto(dto.id,dto.name,dto.key)
+        fun from(p: Player): DedicatedNewPlayerDto{
+            return DedicatedNewPlayerDto(p.id,p.name,p.key)
         }
     }
 }

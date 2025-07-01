@@ -1,37 +1,27 @@
 package uk.fishgames.fpsserver_outgame.matching
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
+import org.springframework.web.socket.CloseStatus
+import org.springframework.web.socket.TextMessage
+import org.springframework.web.socket.WebSocketSession
 import uk.fishgames.fpsserver_outgame.FishUtil
 import uk.fishgames.fpsserver_outgame.PlayerNotFoundException
 import uk.fishgames.fpsserver_outgame.auth.repo.PlayerRepository
 import uk.fishgames.fpsserver_outgame.dedicate_server.Dedicated
 import uk.fishgames.fpsserver_outgame.dedicate_server.Session
 import uk.fishgames.fpsserver_outgame.dedicatedClients
-import uk.fishgames.fpsserver_outgame.matching.dto.GameSetupBoddari
+import uk.fishgames.fpsserver_outgame.matching.dto.*
 import uk.fishgames.fpsserver_outgame.security.JwtUtil
-import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.encodeToJsonElement
-import org.hibernate.annotations.CurrentTimestamp
-import org.springframework.cglib.core.Local
-import org.springframework.web.socket.CloseStatus
-import org.springframework.web.socket.TextMessage
-import org.springframework.web.socket.WebSocketSession
-import uk.fishgames.fpsserver_outgame.matching.dto.MapEnum
-import uk.fishgames.fpsserver_outgame.matching.dto.MatchFoundDto
-import uk.fishgames.fpsserver_outgame.matching.dto.DedicatedNewPlayerDto
-import uk.fishgames.fpsserver_outgame.matching.dto.EnsureMatchDto
-import uk.fishgames.fpsserver_outgame.matching.dto.PlayerDto
-import uk.fishgames.fpsserver_outgame.matching.dto.WsEventDto
-import uk.fishgames.fpsserver_outgame.matching.dto.MatchWsEventType
-import uk.fishgames.fpsserver_outgame.matching.dto.SessionAttributesEnum
 import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 @Service
@@ -49,12 +39,12 @@ class MatchService(
      * @param id : 유저의 id
      * @return PlayerDto? - id를 기반으로 db에서 매치에 필요한 유저 정보를 조회 후 유저 정보를 반환, 조회 실패시 null 반환
      * */
-    fun CreatePlayerDtoFromDataBase(id: String, webSocketSession: WebSocketSession): PlayerDto? {
+    fun CreatePlayerDtoFromDataBase(id: String, webSocketSession: WebSocketSession): Player? {
         try {
             val p = playerRepository.findById(id)
             if(p.isEmpty) return null
             val player = p.get()
-            return PlayerDto(player.id,player.name, FishUtil.uuid(player.name),0,0, webSocketSession)
+            return Player(player.id,player.name, FishUtil.uuid(player.name),0,0, webSocketSession)
         }
         catch(ex: Exception) {
             logger.info { "Error while trying to get player $id" }
@@ -74,14 +64,11 @@ class MatchService(
      * matchWebsocketRegister에 userId기반으로 등록
      * matchQueueManager에 등록
      */
-    fun registerPlayer(session: WebSocketSession, dto: PlayerDto, mode: GameMode): Boolean {
-        logger.info { "Registering new player ${dto.id}, Mode:$mode" }
+    fun registerPlayer(session: WebSocketSession, player: Player, mode: GameMode): Boolean {
+        logger.info { "Registering new player ${player.id}, Mode:$mode" }
 
-        matchWebsocketRegister.register(dto.key,session)
-        matchQueueManager.enqueue(mode,dto.key,dto)
-
-        session.sendMessage(TextMessage(WsEventDto.ensureEnqueue(EnsureMatchDto(dto.key))))
-        tryMakeMatch(mode)
+        matchWebsocketRegister.register(player.key,session)
+        matchQueueManager.enqueue(mode,player.key,player)
         return true;
     }
 
@@ -93,14 +80,12 @@ class MatchService(
         println("WebSocket disconnected: $playerId")
     }
 
-
-    val gameIdSalt:Int = 0;
     fun tryMakeMatch(mode: GameMode): Any? {
         val random = Random(TimeUnit.MICROSECONDS.toSeconds(Random.nextLong()))
         val target = getDediServer()?:return null
 
         val Players = matchQueueManager.makeMatch(mode) ?: return null
-        val newPlayers:List<DedicatedNewPlayerDto> = Players.map { p: PlayerDto-> DedicatedNewPlayerDto.from(p) }
+        val newPlayers:List<DedicatedNewPlayerDto> = Players.map { p: Player-> DedicatedNewPlayerDto.from(p) }
 
 
         val map = MapEnum.entries.get(random.nextInt(0,MapEnum.entries.size))//랜덤 맵 지정이에요
@@ -134,7 +119,7 @@ class MatchService(
                         ,res, newSession.runningOn.serverUrl, map, newPlayers)
                     val playerNotifyDto = Json.encodeToString(
                         WsEventDto(
-                            MatchWsEventType.MatchFound,
+                            MatchWsEventType.MatchFound, 
                             Json.encodeToJsonElement(data))
                     )
                     for(p in Players){
@@ -147,7 +132,6 @@ class MatchService(
                             println("containing ${p.id}")
                             newSession.playerLists.put(p.key, p)
                             println(playerWs.attributes[SessionAttributesEnum.userId.value])
-
                         }
                         else {
 
@@ -158,7 +142,6 @@ class MatchService(
                         val playerWs = matchWebsocketRegister.get(p.key);
                         playerWs?.sendMessage(TextMessage(playerNotifyDto))
                         playerWs?.attributes?.set("sessionId", gameId)
-                        matchWebsocketRegister.remove(p.key);
                         matchQueueManager.cancel(p.key);
                     }
                     target.session.add(newSession)
@@ -184,14 +167,14 @@ class MatchService(
     }
 
 
-    var rrIndex:Int = 0
+    var rrIndex: AtomicInteger = AtomicInteger(0)
     fun getDediServer(): Dedicated? {
         try {
             logger.info { "try find dedi rrIndex: $rrIndex" }
             if(dedicatedClients.entries.size==0) return null
             val v =dedicatedClients.entries.elementAt(
-                rrIndex).value
-            rrIndex = (rrIndex + 1) % dedicatedClients.count()
+                rrIndex.get()).value
+            rrIndex.set((rrIndex.addAndGet(1)) % dedicatedClients.count())
             return v
         }
         catch(ex:Exception) {

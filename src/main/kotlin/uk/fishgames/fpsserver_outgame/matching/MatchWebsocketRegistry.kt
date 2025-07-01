@@ -13,7 +13,8 @@ class MatchWebsocketRegistry {
     }
 
     fun remove(playerId: String) {
-        sessions.remove(playerId)
+
+        val o = sessions.remove(playerId)
     }
 
     fun get(playerId: String): WebSocketSession? = sessions[playerId]
