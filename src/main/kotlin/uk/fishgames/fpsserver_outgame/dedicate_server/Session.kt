@@ -10,6 +10,7 @@ import uk.fishgames.fpsserver_outgame.matching.dto.Player
 import uk.fishgames.fpsserver_outgame.matching.dto.TryCharacterPickDto
 import uk.fishgames.fpsserver_outgame.matching.dto.WsEventDto
 import java.time.LocalDateTime
+import java.util.concurrent.locks.ReentrantLock
 
 class Session(val gameId:String, val runningOn:Dedicated) {
     var status: SessionStatus = SessionStatus.Idle
@@ -25,7 +26,33 @@ class Session(val gameId:String, val runningOn:Dedicated) {
         score = ""
         playTime = LocalDateTime.now()
     }
+
+    /**
+     * 캐릭터 임시 선택(단순 클릭)
+     */
+    fun pickCharacterTemporary(dto:TryCharacterPickDto): WsEventDto? {
+        val p = playerLists.get(dto.sessionUserKey)
+        if(p == null) return null
+        playerLists[dto.sessionUserKey]?.characterId = dto.characterId
+        val notifyDto = CharacterPickNotifyDto(p.id,
+            dto.characterId,
+            null/*p.skinList.get[dto.characterId]*/
+        )
+
+        val notifyEvent = WsEventDto(
+            MatchWsEventType.NotifyCharacterChanged,
+            Json.encodeToJsonElement(notifyDto)
+        )
+        return notifyEvent
+    }
+
+    /**
+     * 캐릭터 확정
+     */
+    private val lock = ReentrantLock()
     fun pickCharacter(dto: TryCharacterPickDto): WsEventDto? {
+        lock.lock()//경쟁 상태 차단
+
         val p = playerLists.get(dto.sessionUserKey)
         if(p == null) return null
         for(o in playerLists.values){
@@ -39,8 +66,9 @@ class Session(val gameId:String, val runningOn:Dedicated) {
             null/*p.skinList.get[dto.characterId]*/
         )
 
+        lock.unlock()
         val notifyEvent = WsEventDto(
-            MatchWsEventType.NotifyCharacterChanged,
+            MatchWsEventType.NotifyCharacterPicked,
             Json.encodeToJsonElement(notifyDto)
         )
         return notifyEvent

@@ -11,5 +11,7 @@ enum class ApiResponseCode(val code: Int) {
     SignUpSuccess(2102),
     JwtRefreshed(2103),
     RefreshTokenRegenerate(2104),
+    IsValidJwt(2105),
+    IsUnValidJwt(2106),
 }
 //21xx:auth code

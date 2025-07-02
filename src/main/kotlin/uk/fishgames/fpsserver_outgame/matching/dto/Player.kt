@@ -8,10 +8,9 @@ class Player (
     val id: String,
     val name: String,
     var key:String,
-
-    var characterId:String,
-    var kill:Int,
-    var death:Int,
-    var matchWebsocket: WebSocketSession?
-
-)
+    var matchWebsocket: WebSocketSession?,
+){
+    var characterId:String? = "";
+    var kill:Int = 0;
+    var death:Int = 0;
+}

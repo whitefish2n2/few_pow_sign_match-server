@@ -29,7 +29,9 @@ class MatchQueueManager {
         logger.info { "try make match, mode:$gameMode, count:$count" }
         val players = queue[gameMode]!!.values.take(count)
         for(player in players) {
+            logger.info { "Player ${player.id}" }
             if(!(player.matchWebsocket?.isOpen ?:false)){
+                logger.info{"Player ${player.id} websocket is not open. so cancel the match"}
                 return null;
             }
         }

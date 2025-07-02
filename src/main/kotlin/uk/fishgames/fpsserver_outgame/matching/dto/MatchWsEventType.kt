@@ -3,11 +3,10 @@ package uk.fishgames.fpsserver_outgame.matching.dto
 enum class MatchWsEventType {
     //client->server
     Ping,
-
-
     EnqueueMatch,
 
     PickCharacter,
+    PickCharacterTemporary,
     GetPickInformation,
 
     //server->client
@@ -15,6 +14,7 @@ enum class MatchWsEventType {
     EnsureEnqueueMatch,
     MatchFound,
     NotifyCharacterChanged,
+    NotifyCharacterPicked,
 
     Cancel,
 

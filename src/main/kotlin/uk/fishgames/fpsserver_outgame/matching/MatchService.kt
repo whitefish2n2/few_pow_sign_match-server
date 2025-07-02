@@ -22,6 +22,7 @@ import uk.fishgames.fpsserver_outgame.security.JwtUtil
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.map
 import kotlin.random.Random
 
 @Service
@@ -44,7 +45,7 @@ class MatchService(
             val p = playerRepository.findById(id)
             if(p.isEmpty) return null
             val player = p.get()
-            return Player(player.id,player.name, FishUtil.uuid(player.name),0,0, webSocketSession)
+            return Player(player.id,player.name, FishUtil.randomUUID(), webSocketSession)
         }
         catch(ex: Exception) {
             logger.info { "Error while trying to get player $id" }
@@ -73,10 +74,14 @@ class MatchService(
     }
 
 
-    fun cancelPlayer(session: WebSocketSession, status: CloseStatus) {
-        val playerId = extractPlayerId(session)
-        matchWebsocketRegister.remove(playerId)
-        matchQueueManager.cancel(playerId)
+    fun cancelPlayer(session: WebSocketSession) {
+        val playerId = session.attributes.get(SessionAttributesEnum.userId.value) as String
+        val userKey = session.attributes.get(SessionAttributesEnum.userKey.value) as String
+
+        matchWebsocketRegister.get(userKey)?.close(CloseStatus.NORMAL)
+        matchWebsocketRegister.remove(userKey)
+        matchQueueManager.cancel(userKey)
+
         println("WebSocket disconnected: $playerId")
     }
 
@@ -111,12 +116,13 @@ class MatchService(
                 .retrieve()
                 .bodyToMono(String::class.java)
                 .doOnSuccess{res->//res : 서버의 session key(uint16) toString 값
+                    println(res)
                     val newSession = Session(
                         gameId = gameId,
                         runningOn = target,
                     )
                     val data = MatchFoundDto(gameId, connectKey
-                        ,res, newSession.runningOn.serverUrl, map, newPlayers)
+                        ,res, newSession.runningOn.serverUrl, map, Players.map { p: Player-> ClientNewPlayerDto.from(p) })
                     val playerNotifyDto = Json.encodeToString(
                         WsEventDto(
                             MatchWsEventType.MatchFound, 

@@ -3,11 +3,9 @@ package uk.fishgames.fpsserver_outgame.matching
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.*
 import org.springframework.web.socket.handler.TextWebSocketHandler
-import uk.fishgames.fpsserver_outgame.PlayerNotFoundException
 import uk.fishgames.fpsserver_outgame.matching.dto.EnsureMatchDto
 import uk.fishgames.fpsserver_outgame.matching.dto.MatchWsEventType
 import uk.fishgames.fpsserver_outgame.matching.dto.WsEventDto
@@ -33,7 +31,7 @@ class MatchWebSocketHandler (
 
     }
     override fun afterConnectionClosed(session: WebSocketSession, status: CloseStatus) {
-        matchService.cancelPlayer(session, status)
+        matchService.cancelPlayer(session)
     }
     override fun handleTextMessage(session: WebSocketSession, message: TextMessage) {
         try {
@@ -65,6 +63,7 @@ class MatchWebSocketHandler (
 
                         val gameMode = GameMode.valueOf(requestDto)
 
+                        matchService.cancelPlayer(session);
                         val success = matchService.registerPlayer(session,playerDto, gameMode)
                         if(!success) {session.close(CloseStatus.SERVER_ERROR);return;}
 

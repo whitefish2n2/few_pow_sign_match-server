@@ -1,5 +1,6 @@
 package uk.fishgames.fpsserver_outgame.matching
 
+import org.springframework.http.HttpStatus
 import org.springframework.http.server.ServerHttpRequest
 import org.springframework.http.server.ServerHttpResponse
 import org.springframework.http.server.ServletServerHttpRequest
@@ -24,8 +25,13 @@ class AuthHandshakeInterceptor(
         //user Id url 파라미터에서 빼오기
         try{
             val servletRequest = (request as ServletServerHttpRequest).servletRequest
-            val token = servletRequest.getParameter("token") ?: return false
-            if(!jwtUtil.validateToken(token))return false
+
+            val token = servletRequest.getParameter("token") ?:
+            servletRequest.getHeader("Authorization")?.removePrefix("Bearer ")?:return false
+
+            if(!jwtUtil.validateToken(token)){
+                return false
+            }
             val userId = jwtUtil.getUserIdFromToken(token)
             attributes["userId"] = userId
             return true

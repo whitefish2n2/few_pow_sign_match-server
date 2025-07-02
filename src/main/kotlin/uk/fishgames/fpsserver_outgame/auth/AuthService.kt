@@ -25,6 +25,12 @@ class AuthService(
     private val refreshTokenRepo: RefreshTokenRepository,
 ) {
     private val logger = LoggerFactory.getLogger(AuthService::class.java)
+
+    fun validateToken(token: String): Boolean {
+        val valid = jwtUtil.validateToken(token.replace("Bearer ", ""))
+        if(!valid) throw InvalidJwtException()
+        else return true;
+    }
     fun signIn(info: SignInDto): SignInResponseDto {
         try {
             val player: PlayerDataEntity = playerRepo.findFirstById(info.id) ?: throw PlayerNotFoundException()

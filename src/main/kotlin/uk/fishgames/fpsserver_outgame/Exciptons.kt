@@ -33,8 +33,14 @@ class InvalidJwtException(message: String = "유효하지 않은 jwt입니다.")
     BaseException(ExceptionCode.InvalidJwtException.code, message)
 class DediSecretKeyNotMatchedException(message:String = "데디케이티드 서버 등록 키가 맞지 않습니다."):
     BaseException(ExceptionCode.DediSecretKeyNotMatchedException.code, message)
+class AlreadyExistDedicatedServerException(message:String = "이미 존재하는 데디케이티드 서버 키입니다."):
+    BaseException(ExceptionCode.AlreadyExistDedicatedServerException.code, message)
+
+class BadDataException(message: String = "잘못된 입력입니다."):
+    BaseException(ExceptionCode.BadDataException.code, message)
 class NotDefinedError(message: String= "정의되지 않은 에러입니다. whitefish822@gmail.com으로 연락해주세요."):
     BaseException(ExceptionCode.NotDefinedError.code,message)
+
 
 enum class ExceptionCode(val code: Int) {
     TestException(1),
@@ -49,9 +55,12 @@ enum class ExceptionCode(val code: Int) {
     InvalidMatchException(4010),
     //DedicatedServer error
     DediSecretKeyNotMatchedException(4060),
+    AlreadyExistDedicatedServerException(4061),
     //token error
     InvalidTokenException(4070),
     InvalidJwtException(4071),
+
+    BadDataException(4100),
 
 
     //not defined
@@ -59,7 +68,8 @@ enum class ExceptionCode(val code: Int) {
 }
 /*
 400-|auth error
-410-|match error
+401-|match error
 406-|dedicated server error
 407-|token error(do token regenerate)
+410-|invalid error
 */
