@@ -31,8 +31,7 @@ class MatchService(
     private val playerRepository: PlayerRepository,
     private val matchQueueManager: MatchQueueManager,
     private val webClient: WebClient,
-    private val matchWebsocketRegister: MatchWebsocketRegistry,
-    private val gameSessionHolder: GameSessionHolder
+    private val matchWebsocketRegister: MatchWebsocketRegistry
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -108,7 +107,6 @@ class MatchService(
             val body = Json.encodeToString(gameSetupBoddari)
 
             logger.debug { body }
-
             val res = webClient.post()
                 .uri("${target.serverUrl}/makesession")
                 .accept(MediaType.APPLICATION_JSON)
@@ -151,7 +149,7 @@ class MatchService(
                         matchQueueManager.cancel(p.key);
                     }
                     target.session.add(newSession)
-                    gameSessionHolder.putSession(newSession)
+                    GameSessionHolder.putSession(newSession)
                 }
                 .doOnError {
                     logger.error(it) { "Error while making session" }
@@ -186,6 +184,29 @@ class MatchService(
         catch(ex:Exception) {
             logger.error { ex }
             return null
+        }
+    }
+
+    /**
+     * 서버 단 미구현 * 엔드포인트 미존재
+     * 닷지됐을때 서버 정리를 위한 함수
+     */
+    fun dodgeGame(target:Dedicated, gameId: String){
+        try {
+            webClient.post()
+                .uri("${target.serverUrl}/dodgeGame")
+                .bodyValue(gameId)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .bodyToMono(String::class.java)
+                .doOnError {
+                    logger.error(it) { "Error while making session" }
+                    throw it
+                }
+                .subscribe()
+        }
+        catch (ex:Exception) {
+            logger.error(ex) { "Error while making session" }
         }
     }
 

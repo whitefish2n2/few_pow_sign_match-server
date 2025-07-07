@@ -1,6 +1,7 @@
 package uk.fishgames.fpsserver_outgame.matching
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.springframework.stereotype.Component
@@ -17,7 +18,6 @@ import uk.fishgames.fpsserver_outgame.matching.dto.TryCharacterPickDto
 @Component
 class MatchWebSocketHandler (
     private val matchService: MatchService,
-    private val gameSessionHolder: GameSessionHolder
 ) : TextWebSocketHandler() {
     val logger = KotlinLogging.logger {}
     override fun afterConnectionEstablished(session: WebSocketSession) {
@@ -86,16 +86,49 @@ class MatchWebSocketHandler (
                         return
                     }
 
-                    val gameSession = gameSessionHolder.runningSessions[requestDto.sessionId]
+                    val gameSession = GameSessionHolder.runningSessions[requestDto.sessionId]
                     if (gameSession == null) {
                         session.close(CloseStatus.BAD_DATA)
                         return
                     }
 
-                    val notifyDto = gameSession.pickCharacter(requestDto)
+                    val notifyDto = gameSession.pickCharacterUp(requestDto)
+
+                    //실패 시
+                    if(notifyDto == null) return;
+
+                    //성공 시 - TryCharacterPickDto 그대로 반환 전송
+                    else {
+                        gameSession.broadcastToAllPlayer(notifyDto)
+                        session.sendMessage(
+                            TextMessage(
+                                Json.encodeToString(
+                                    WsEventDto(
+                                        MatchWsEventType.PickCharacterSuccess,
+                                        dto.Message)
+                                )
+                            )
+                        )
+                    }
+                }
+                MatchWsEventType.PickCharacterTemporary ->{
+                    if(dto.Message == null) {session.close(CloseStatus.BAD_DATA);return}
+                    val requestDto = try {
+                        Json.decodeFromJsonElement<TryCharacterPickDto>(dto.Message)
+                    } catch (e: Exception) {
+                        session.close(CloseStatus.BAD_DATA)
+                        return
+                    }
+
+                    val gameSession = GameSessionHolder.runningSessions[requestDto.sessionId]
+                    if (gameSession == null) {
+                        session.close(CloseStatus.BAD_DATA)
+                        return
+                    }
+
+                    val notifyDto = gameSession.pickCharacterOn(requestDto)
                     if(notifyDto == null) return
                     else gameSession.broadcastToAllPlayer(notifyDto)
-
                 }
                 MatchWsEventType.GetPickInformation -> {
                     TODO()

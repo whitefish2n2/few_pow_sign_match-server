@@ -15,6 +15,8 @@ enum class MatchWsEventType {
     MatchFound,
     NotifyCharacterChanged,
     NotifyCharacterPicked,
+    PickCharacterFailed,
+    PickCharacterSuccess,
 
     Cancel,
 
