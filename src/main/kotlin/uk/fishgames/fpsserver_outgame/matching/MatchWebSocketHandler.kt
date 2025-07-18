@@ -13,6 +13,8 @@ import uk.fishgames.fpsserver_outgame.matching.dto.WsEventDto
 import uk.fishgames.fpsserver_outgame.matching.dto.MatchWsEventType.*
 import uk.fishgames.fpsserver_outgame.matching.dto.SessionAttributesEnum
 import uk.fishgames.fpsserver_outgame.matching.dto.TryCharacterPickDto
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 
 //매칭 시에 연결되는 웹소켓 핸들러
 @Component
@@ -33,10 +35,12 @@ class MatchWebSocketHandler (
     override fun afterConnectionClosed(session: WebSocketSession, status: CloseStatus) {
         matchService.cancelPlayer(session)
     }
+    var pickLock: Lock = ReentrantLock()
     override fun handleTextMessage(session: WebSocketSession, message: TextMessage) {
         try {
             println("Received from client: ${message.payload}")
             val dto = Json.decodeFromString<WsEventDto>(message.payload)
+
             when(dto.Type){
                 Ping->{
                     logger.info { "Ping From ${session.attributes[SessionAttributesEnum.userId.value]}" }
@@ -55,7 +59,7 @@ class MatchWebSocketHandler (
                         logger.info { "try enqueue match user:${session.attributes[SessionAttributesEnum.userId.value]} | | | Mode:${requestDto}" }
 
                         val userId:String = session.attributes[SessionAttributesEnum.userId.value] as String;
-                        val playerDto = matchService.CreatePlayerDtoFromDataBase(userId, session)
+                        val playerDto = matchService.createPlayerDtoFromDataBase(userId, session)
 
                         if(playerDto == null) {session.close(CloseStatus.BAD_DATA);return;}
 
@@ -76,6 +80,7 @@ class MatchWebSocketHandler (
                         session.close(CloseStatus.SERVER_ERROR)
                     }
                 }
+
                 MatchWsEventType.PickCharacter -> {
                     if(dto.Message == null) {session.close(CloseStatus.BAD_DATA);return}
 
@@ -116,19 +121,24 @@ class MatchWebSocketHandler (
                     val requestDto = try {
                         Json.decodeFromJsonElement<TryCharacterPickDto>(dto.Message)
                     } catch (e: Exception) {
+                        println("Exception while connecting to client: ${e.message}") ;
                         session.close(CloseStatus.BAD_DATA)
                         return
                     }
-
                     val gameSession = GameSessionHolder.runningSessions[requestDto.sessionId]
                     if (gameSession == null) {
+                        println("Invalid Game Session!")
                         session.close(CloseStatus.BAD_DATA)
                         return
                     }
-
                     val notifyDto = gameSession.pickCharacterOn(requestDto)
-                    if(notifyDto == null) return
-                    else gameSession.broadcastToAllPlayer(notifyDto)
+                    if(notifyDto == null){
+                        println("notifyDto is null"); return
+                    }
+                    else {
+                        gameSession.broadcastToAllPlayer(notifyDto)
+                    }
+                    println("Broadcast PickCharacterOn Message To Session")
                 }
                 MatchWsEventType.GetPickInformation -> {
                     TODO()

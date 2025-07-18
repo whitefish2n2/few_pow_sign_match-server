@@ -13,6 +13,8 @@ import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
 import uk.fishgames.fpsserver_outgame.FishUtil
 import uk.fishgames.fpsserver_outgame.PlayerNotFoundException
+import uk.fishgames.fpsserver_outgame.UserInformation.UserPublicStaticInfo
+import uk.fishgames.fpsserver_outgame.UserInformation.repo.PlayerStaticDataRepository
 import uk.fishgames.fpsserver_outgame.auth.repo.PlayerRepository
 import uk.fishgames.fpsserver_outgame.dedicate_server.Dedicated
 import uk.fishgames.fpsserver_outgame.dedicate_server.Session
@@ -29,6 +31,7 @@ import kotlin.random.Random
 class MatchService(
     private val jwtUtil: JwtUtil,
     private val playerRepository: PlayerRepository,
+    private val playerStaticRepository: PlayerStaticDataRepository,
     private val matchQueueManager: MatchQueueManager,
     private val webClient: WebClient,
     private val matchWebsocketRegister: MatchWebsocketRegistry
@@ -39,12 +42,16 @@ class MatchService(
      * @param id : 유저의 id
      * @return PlayerDto? - id를 기반으로 db에서 매치에 필요한 유저 정보를 조회 후 유저 정보를 반환, 조회 실패시 null 반환
      * */
-    fun CreatePlayerDtoFromDataBase(id: String, webSocketSession: WebSocketSession): Player? {
+    fun createPlayerDtoFromDataBase(id: String, webSocketSession: WebSocketSession): Player? {
         try {
             val p = playerRepository.findById(id)
-            if(p.isEmpty) return null
+            val ps = playerStaticRepository.findById(id)
+            if(p.isEmpty || ps.isEmpty) return null
             val player = p.get()
-            return Player(player.id,player.name, FishUtil.randomUUID(), webSocketSession)
+            val playerStatic = ps.get()
+            val newPlayer = Player(player.id,playerStatic.userName, FishUtil.randomUUID(), webSocketSession);
+            newPlayer.staticInfo = UserPublicStaticInfo.from(playerStatic);
+            return newPlayer;
         }
         catch(ex: Exception) {
             logger.info { "Error while trying to get player $id" }

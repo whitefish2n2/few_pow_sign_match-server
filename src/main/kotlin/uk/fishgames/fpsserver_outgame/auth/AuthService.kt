@@ -1,8 +1,11 @@
 package uk.fishgames.fpsserver_outgame.auth
 
+import jakarta.transaction.Transactional
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import uk.fishgames.fpsserver_outgame.*
+import uk.fishgames.fpsserver_outgame.UserInformation.Entity.PlayerStaticDataEntity
+import uk.fishgames.fpsserver_outgame.UserInformation.repo.PlayerStaticDataRepository
 import uk.fishgames.fpsserver_outgame.auth.dto.RefreshDto
 import uk.fishgames.fpsserver_outgame.auth.Entity.PlayerDataEntity
 import uk.fishgames.fpsserver_outgame.auth.Entity.RefreshTokenEntity
@@ -15,6 +18,7 @@ import uk.fishgames.fpsserver_outgame.auth.repo.RefreshTokenRepository
 import uk.fishgames.fpsserver_outgame.security.JwtUtil
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
@@ -23,6 +27,7 @@ class AuthService(
     private val jwtUtil: JwtUtil,
     private val playerRepo: PlayerRepository,
     private val refreshTokenRepo: RefreshTokenRepository,
+    private val playerStaticDataRepo: PlayerStaticDataRepository
 ) {
     private val logger = LoggerFactory.getLogger(AuthService::class.java)
 
@@ -64,15 +69,28 @@ class AuthService(
         }
     }
 
+    @Transactional(rollbackOn = [Exception::class])
     fun signUp(info: SignUpDto): PlayerDataEntity? {
         if (!isValidSignUpId(info.id)) throw AlreadyExistsIdException()
-        val newEntity = PlayerDataEntity()
-        newEntity.id = info.id
-        newEntity.password = FishUtil.hash(info.password)
-        newEntity.name = info.name
+
+        //player data entity 생성
+        val player = PlayerDataEntity()
+        player.id = info.id
+        player.password = FishUtil.hash(info.password)
+        player.name = info.name
+
+        //static info 생성
+        val static = PlayerStaticDataEntity(
+            userName = info.name,
+            createdAt = LocalDateTime.now(),
+        ).apply {
+            user = player
+        }
+        player.staticData = static
+
         try {
-            playerRepo.save(newEntity)
-            return newEntity
+            playerRepo.save(player)
+            return player
         } catch (e: Exception) {
             e.printStackTrace()
             throw e

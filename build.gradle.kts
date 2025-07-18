@@ -1,7 +1,7 @@
 plugins {
-	kotlin("jvm") version "1.9.25"
+	kotlin("jvm") version "2.1.20"
 	kotlin("plugin.spring") version "1.9.25"
-	kotlin("plugin.serialization") version "1.9.25"
+	kotlin("plugin.serialization") version "2.2.0"
 	id("org.springframework.boot") version "3.4.4"
 	id("io.spring.dependency-management") version "1.1.7"
 }
@@ -29,6 +29,7 @@ dependencies {
 	//kotlinx : json,reflect
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+	implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
 
 	//spring boot web
 	implementation("org.springframework.boot:spring-boot-starter")
