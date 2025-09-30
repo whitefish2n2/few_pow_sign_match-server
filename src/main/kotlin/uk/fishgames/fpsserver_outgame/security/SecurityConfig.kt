@@ -21,6 +21,7 @@ class SecurityConfig(private val jwtProvider: uk.fishgames.fpsserver_outgame.sec
                 it.requestMatchers("/auth/**").permitAll()
                 it.requestMatchers("/match-wait").permitAll()
                 it.requestMatchers("/dedicated/**").permitAll()
+                it.requestMatchers("/index.html").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(JwtAuthFilter(jwtProvider), UsernamePasswordAuthenticationFilter::class.java)
