@@ -8,7 +8,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.filter.OncePerRequestFilter
 
-class JwtAuthFilter(private val jwtProvider: uk.fishgames.fpsserver_outgame.security.JwtUtil) : OncePerRequestFilter() {
+class JwtAuthFilter(private val jwtProvider: JwtUtil) : OncePerRequestFilter() {
 
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
         val token = extractJwtFromHeader(request)

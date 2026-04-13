@@ -21,6 +21,6 @@ class PlayerDataEntity {
     var password: String = ""
 
     //user static data 테이블과 관계 설정
-    @OneToOne(mappedBy = "user", cascade = [CascadeType.ALL], fetch = FetchType.LAZY, optional = false)
+    @OneToOne(mappedBy = "user", cascade = [CascadeType.ALL], optional = false)
     var staticData: PlayerStaticDataEntity? = null
 }

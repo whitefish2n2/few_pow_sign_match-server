@@ -15,7 +15,7 @@ class DedicatedRegistService {
     @Value("\${dedicate.secret-key}")
     var holymolySafeKey: String = "default"
     fun registDedicated(dedicate: DedicatedRegistDto):DedicateRegistResponseDto {
-        val serverId = FishUtil.hash(dedicate.ip)
+        val serverId = FishUtil.randomUUID()
         try {
             if (dedicate.key != holymolySafeKey) {
                 throw DediSecretKeyNotMatchedException()
@@ -25,7 +25,9 @@ class DedicatedRegistService {
                 println("new dedicate Server is on the rail id: ${serverId} ip: ${dedicate.ip}")
             } else {
                 println("Invalid Dedicated Server Create Request Detected.")
-                throw AlreadyExistDedicatedServerException();
+                println(dedicatedClients.get(serverId))
+                dedicatedClients[serverId] = Dedicated(serverId, dedicate.ip, dedicate.sessions, dedicate.url)
+                //TODO: 키 겹치는 문제 해결
             }
 
         } catch (e: Exception) {

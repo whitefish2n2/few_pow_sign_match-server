@@ -8,6 +8,6 @@ data class MatchFoundDto (
     val sessionVerifyKey:String,
     val sessionIndex:String,
     val url:String,
-    val map: MapEnum,
+    val map: Int,//map id
     val players:List<ClientNewPlayerDto>,
 )

@@ -52,6 +52,7 @@ dependencies {
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	//db(pgsql)
 	runtimeOnly("org.postgresql:postgresql")
+	runtimeOnly("org.postgresql:postgresql")
 	//jwt
 	implementation("io.jsonwebtoken:jjwt-api:0.11.5")
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")

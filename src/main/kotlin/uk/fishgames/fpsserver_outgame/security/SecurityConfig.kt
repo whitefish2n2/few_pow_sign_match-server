@@ -10,7 +10,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-class SecurityConfig(private val jwtProvider: uk.fishgames.fpsserver_outgame.security.JwtUtil) {
+class SecurityConfig(private val jwtProvider: JwtUtil) {
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {

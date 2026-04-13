@@ -20,6 +20,7 @@ import uk.fishgames.fpsserver_outgame.dedicate_server.Dedicated
 import uk.fishgames.fpsserver_outgame.dedicate_server.Session
 import uk.fishgames.fpsserver_outgame.dedicatedClients
 import uk.fishgames.fpsserver_outgame.matching.dto.*
+import uk.fishgames.fpsserver_outgame.matching.ws.MatchWebsocketRegistry
 import uk.fishgames.fpsserver_outgame.security.JwtUtil
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
@@ -99,7 +100,7 @@ class MatchService(
         val newPlayers:List<DedicatedNewPlayerDto> = Players.map { p: Player-> DedicatedNewPlayerDto.from(p) }
 
 
-        val map = MapEnum.entries.get(random.nextInt(0,MapEnum.entries.size))//랜덤 맵 지정이에요
+        val map = random.nextInt(1,MapEnum.entries.size)//랜덤 맵 지정이에요 todo: 모드에 따른 맵 풀 시스템
 
         val gameId = LocalDateTime.now().toString() + FishUtil.randomUUID()//랜덤 게임 id 생성이에요
 
@@ -195,7 +196,7 @@ class MatchService(
     }
 
     /**
-     * 서버 단 미구현 * 엔드포인트 미존재
+     * todo: 서버 단 미구현 * 엔드포인트 미존재
      * 닷지됐을때 서버 정리를 위한 함수
      */
     fun dodgeGame(target:Dedicated, gameId: String){

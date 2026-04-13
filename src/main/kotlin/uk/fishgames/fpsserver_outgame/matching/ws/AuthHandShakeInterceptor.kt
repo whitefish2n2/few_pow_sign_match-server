@@ -1,6 +1,5 @@
-package uk.fishgames.fpsserver_outgame.matching
+package uk.fishgames.fpsserver_outgame.matching.ws
 
-import org.springframework.http.HttpStatus
 import org.springframework.http.server.ServerHttpRequest
 import org.springframework.http.server.ServerHttpResponse
 import org.springframework.http.server.ServletServerHttpRequest

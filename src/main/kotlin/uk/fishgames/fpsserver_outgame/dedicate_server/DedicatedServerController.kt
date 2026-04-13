@@ -26,7 +26,7 @@ class DedicatedServerController(
     fun deleteDedicate(@RequestBody dto: DedicatedDeleteDto): Any {
         try {
             val deleted = dedicatedClients.remove(dto.id)
-            if(deleted == null)println("Someone Try to delete dedicated server, but there is no current dedicated server!")
+            if(deleted == null)println("Someone Try to delete dedicated server, but there is no current dedicated server! server ID: ${dto.id}")
         } catch (e: Exception) {
             e.printStackTrace()
             return ResponseEntity.badRequest().body("server delete failed")

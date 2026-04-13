@@ -10,7 +10,7 @@ import uk.fishgames.fpsserver_outgame.auth.dto.RefreshDto
 import uk.fishgames.fpsserver_outgame.auth.Entity.PlayerDataEntity
 import uk.fishgames.fpsserver_outgame.auth.Entity.RefreshTokenEntity
 import uk.fishgames.fpsserver_outgame.auth.dto.SignInDto
-import uk.fishgames.fpsserver_outgame.auth.dto.SignInResponseDto
+import uk.fishgames.fpsserver_outgame.auth.dto.signInResponseDto
 import uk.fishgames.fpsserver_outgame.auth.dto.SignInWithRefreshDto
 import uk.fishgames.fpsserver_outgame.auth.dto.SignUpDto
 import uk.fishgames.fpsserver_outgame.auth.repo.PlayerRepository
@@ -36,14 +36,14 @@ class AuthService(
         if(!valid) throw InvalidJwtException()
         else return true;
     }
-    fun signIn(info: SignInDto): SignInResponseDto {
+    fun signIn(info: SignInDto): signInResponseDto {
         try {
             val player: PlayerDataEntity = playerRepo.findFirstById(info.id) ?: throw PlayerNotFoundException()
 
             if (player.password == FishUtil.hash(info.password)) {
                 val token = createRefreshToken(player)
                 val jwt = jwtUtil.createToken(player.id)
-                return SignInResponseDto(jwt = jwt, refreshToken = token)
+                return signInResponseDto(jwt = jwt, refreshToken = token)
             } else throw LoginPasswordNotMatchException()
         } catch (e: Exception) {
             logger.error("error while signing in: ${info.id}", e)
@@ -51,7 +51,7 @@ class AuthService(
         }
     }
 
-    fun signInWithRefreshToken(info: SignInWithRefreshDto): SignInResponseDto {
+    fun signInWithRefreshToken(info: SignInWithRefreshDto): signInResponseDto {
         try {
             if(!isValidRefreshToken(info.refreshToken))
                 throw InvalidTokenException()
@@ -60,7 +60,7 @@ class AuthService(
                 val player: PlayerDataEntity = playerRepo.findFirstById(r) ?: throw PlayerNotFoundException()
                 val token = createRefreshToken(player)
                 val jwt = jwtUtil.createToken(player.id)
-                return SignInResponseDto(jwt = jwt, refreshToken = token)
+                return signInResponseDto(jwt = jwt, refreshToken = token)
             } else throw PlayerNotFoundException()
 
         } catch (e: Exception) {

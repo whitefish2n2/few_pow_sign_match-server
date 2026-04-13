@@ -1,4 +1,4 @@
-package uk.fishgames.fpsserver_outgame.matching
+package uk.fishgames.fpsserver_outgame.matching.ws
 
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.WebSocketSession
@@ -19,4 +19,3 @@ class MatchWebsocketRegistry {
 
     fun get(playerId: String): WebSocketSession? = sessions[playerId]
 }
-

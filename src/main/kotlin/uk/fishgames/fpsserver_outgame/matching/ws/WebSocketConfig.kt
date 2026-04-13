@@ -1,4 +1,4 @@
-package uk.fishgames.fpsserver_outgame.matching
+package uk.fishgames.fpsserver_outgame.matching.ws
 
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.socket.config.annotation.EnableWebSocket

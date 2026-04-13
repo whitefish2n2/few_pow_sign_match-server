@@ -14,7 +14,7 @@ object GameSessionHolder{
     }
 
     /**
-     * 세션들 1초에 한번 순회하면서 상태 체크 등 하는 함수
+     * todo:세션들 10초에 한번 순회하면서 상태 체크 등 하는 함수
      */
     fun tick(){
         for(i in runningSessions.values){

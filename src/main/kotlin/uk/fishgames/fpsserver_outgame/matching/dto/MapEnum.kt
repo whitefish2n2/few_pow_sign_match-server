@@ -4,3 +4,4 @@ enum class MapEnum {
     Test,
     Haven,
 }
+data class MapId(val id: Int, val name: String);

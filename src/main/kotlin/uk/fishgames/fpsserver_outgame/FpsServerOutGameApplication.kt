@@ -10,10 +10,11 @@ import org.springframework.boot.runApplication
 import uk.fishgames.fpsserver_outgame.dedicate_server.Dedicated
 import uk.fishgames.fpsserver_outgame.matching.GameSessionHolder
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 @SpringBootApplication
 class FpsServerOutGameApplication
-var dedicatedClients = HashMap<String, Dedicated>()
+var dedicatedClients = ConcurrentHashMap<String, Dedicated>()
 
 fun main(args: Array<String>) {
 	runApplication<FpsServerOutGameApplication>(*args)
