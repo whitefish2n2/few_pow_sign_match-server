@@ -99,8 +99,7 @@ class MatchService(
         val Players = matchQueueManager.makeMatch(mode) ?: return null
         val newPlayers:List<DedicatedNewPlayerDto> = Players.map { p: Player-> DedicatedNewPlayerDto.from(p) }
 
-
-        val map = random.nextInt(1,MapEnum.entries.size)//랜덤 맵 지정이에요 todo: 모드에 따른 맵 풀 시스템
+        val map = random.nextInt(1,MapEnum.entries.size)//랜덤 맵 지정이에요 todo: 모드에 따른 맵 풀 시스템 제작
 
         val gameId = LocalDateTime.now().toString() + FishUtil.randomUUID()//랜덤 게임 id 생성이에요
 
