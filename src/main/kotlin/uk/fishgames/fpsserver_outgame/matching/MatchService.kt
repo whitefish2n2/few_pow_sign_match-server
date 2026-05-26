@@ -5,10 +5,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import org.springframework.http.MediaType
+import org.springframework.scheduling.TaskScheduler
+import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
-import org.springframework.web.reactive.function.client.WebClientResponseException
-import org.springframework.web.socket.CloseStatus
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
 import uk.fishgames.fpsserver_outgame.FishUtil
@@ -18,16 +18,24 @@ import uk.fishgames.fpsserver_outgame.UserInformation.repo.PlayerStaticDataRepos
 import uk.fishgames.fpsserver_outgame.auth.repo.PlayerRepository
 import uk.fishgames.fpsserver_outgame.dedicate_server.Dedicated
 import uk.fishgames.fpsserver_outgame.dedicate_server.Session
+import uk.fishgames.fpsserver_outgame.dedicate_server.SessionStatus
 import uk.fishgames.fpsserver_outgame.dedicatedClients
 import uk.fishgames.fpsserver_outgame.matching.dto.*
 import uk.fishgames.fpsserver_outgame.matching.ws.MatchWebsocketRegistry
 import uk.fishgames.fpsserver_outgame.security.JwtUtil
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.map
 import kotlin.random.Random
-
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
+import kotlin.time.toJavaInstant
+@EnableScheduling
 @Service
 class MatchService(
     private val jwtUtil: JwtUtil,
@@ -35,7 +43,9 @@ class MatchService(
     private val playerStaticRepository: PlayerStaticDataRepository,
     private val matchQueueManager: MatchQueueManager,
     private val webClient: WebClient,
-    private val matchWebsocketRegister: MatchWebsocketRegistry
+    private val matchWebsocketRegister: MatchWebsocketRegistry,
+    private val taskScheduler: TaskScheduler,
+    private val gameSessionHolder: GameSessionHolder
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -50,7 +60,7 @@ class MatchService(
             if(p.isEmpty || ps.isEmpty) return null
             val player = p.get()
             val playerStatic = ps.get()
-            val newPlayer = Player(player.id,playerStatic.userName, FishUtil.randomUUID(), webSocketSession);
+            val newPlayer = Player(player.id,playerStatic.userName, FishUtil.randomUUID(), UserPublicStaticInfo.from(playerStatic));
             newPlayer.staticInfo = UserPublicStaticInfo.from(playerStatic);
             return newPlayer;
         }
@@ -66,7 +76,6 @@ class MatchService(
      * 플레이어를 대기열에 등록하는 함수입니다
      * @param session:웹소켓 세션
      *
-     * @suppress session의 attributes의 userId, gameMode가 채워져있어야함
      * @return 등록 성공 여부 (Boolean)
      * tryMateMatch(mode) 실행
      * matchWebsocketRegister에 userId기반으로 등록
@@ -75,105 +84,159 @@ class MatchService(
     fun registerPlayer(session: WebSocketSession, player: Player, mode: GameMode): Boolean {
         logger.info { "Registering new player ${player.id}, Mode:$mode" }
 
-        matchWebsocketRegister.register(player.key,session)
         matchQueueManager.enqueue(mode,player.key,player)
-        return true;
+        return true
     }
 
 
     fun cancelPlayer(session: WebSocketSession) {
-        val playerId = session.attributes.get(SessionAttributesEnum.userId.value) as String
-        val userKey = session.attributes.get(SessionAttributesEnum.userKey.value) as String
+        val playerId = session.attributes.get(SessionAttributesEnum.userId.value) as? String?:return
+        val userKey = session.attributes[SessionAttributesEnum.userKey.value] as? String ?: return
 
-        matchWebsocketRegister.get(userKey)?.close(CloseStatus.NORMAL)
-        matchWebsocketRegister.remove(userKey)
         matchQueueManager.cancel(userKey)
+        if(session.attributes.get(SessionAttributesEnum.sessionId.value) != null) {
+            val gameSession= gameSessionHolder.runningSessions[session.attributes[SessionAttributesEnum.sessionId.value]];
+            if(gameSession?.status != SessionStatus.Playing){
+                    gameSession?.dodgeGame();
+                    logger.info { "Game Session has been cancelled. caused by player match anomaly: ${session.attributes.get(SessionAttributesEnum.userId.value)}" }
+                }
+            }
 
-        println("WebSocket disconnected: $playerId")
+        println("clearing player: $playerId")
     }
 
+    fun makeSessionOnDedicatedServer(session: Session) {
+
+        val players = session.playerLists.values;
+        val newPlayers: List<DedicatedNewPlayerDto> = players.map { p: Player -> DedicatedNewPlayerDto.from(p) }
+
+        val gameSetupBoddari = GameSetupBoddari(
+            session.gameId,
+            newPlayers,
+            session.mode,
+            session.gameMap.ordinal,//서버->데디케이티드는 id로 전송
+            session.playerServerConnectKey
+        )
+        logger.info { "try make session to ${session.runningOn.serverUrl}/makesession" }
+        logger.info { gameSetupBoddari.toString() }
+
+        val body = Json.encodeToString(gameSetupBoddari)
+
+        logger.debug { body }
+        val res = webClient.post()
+            .uri("${session.runningOn.serverUrl}/makesession")
+            .accept(MediaType.APPLICATION_JSON)
+            .bodyValue(body)
+            .retrieve()
+            .bodyToMono(String::class.java)
+            .doOnSuccess { res ->//res : 서버의 session key(uint16) toString 값
+                println("Dedi Server Session Key: $res")
+                val hasDisconnectedPlayer = players.any { p ->
+                    matchWebsocketRegister.get(p.key)?.isOpen == false
+                }
+
+                // 끊긴 유저가 있다면 닷지 처리 후 바로 종료 (throw 대신 return)
+                if (hasDisconnectedPlayer) {
+                    logger.warn { "유저 연결 끊김 감지됨. 게임을 닷지합니다. GameID: ${session.gameId}" }
+                    dodgeGame(session.runningOn, session.gameId)
+                    return@doOnSuccess
+                }
+
+                val data = StartGameDto(
+                    session.gameId,
+                    session.playerServerConnectKey,
+                    res,
+                    session.runningOn.serverUrl,
+                    session.gameMap.name,
+                    players.map { p: Player -> AnotherPlayerInfoDto.from(p) })
+                val playerNotifyDto = Json.encodeToString(
+                    WsEventDto(
+                        MatchWsEventType.StartMatch,
+                        Json.encodeToJsonElement(data)
+                    )
+                )
+                session.status = SessionStatus.Playing
+                for (p in players) {
+                    val playerWs = matchWebsocketRegister.get(p.key);
+                    playerWs?.sendMessage(TextMessage(playerNotifyDto))
+                    matchQueueManager.cancel(p.key);
+                    playerWs?.close(CustomWebsocketCloseCode.GAME_STARTED)
+                }
+            }
+            .doOnError {
+                logger.error(it) { "Error while making session" }
+                logger.error { " ${it.message}" }
+                dodgeGame(session.runningOn, session.gameId)
+            }
+            .subscribe()
+    }
+
+    @OptIn(ExperimentalTime::class)
     fun tryMakeMatch(mode: GameMode): Any? {
         val random = Random(TimeUnit.MICROSECONDS.toSeconds(Random.nextLong()))
         val target = getDediServer()?:return null
 
-        val Players = matchQueueManager.makeMatch(mode) ?: return null
-        val newPlayers:List<DedicatedNewPlayerDto> = Players.map { p: Player-> DedicatedNewPlayerDto.from(p) }
-
-        val map = random.nextInt(1,MapEnum.entries.size)//랜덤 맵 지정이에요 todo: 모드에 따른 맵 풀 시스템 제작
-
+        val players = matchQueueManager.makeMatch(mode) ?: return null
+        val newPlayers:List<DedicatedNewPlayerDto> = players.map { p: Player-> DedicatedNewPlayerDto.from(p) }
+        val map = MapEnum.entries[random.nextInt(1,MapEnum.entries.size)]//랜덤 맵 지정이에요 todo: 모드에 따른 맵 풀 시스템 제작
         val gameId = LocalDateTime.now().toString() + FishUtil.randomUUID()//랜덤 게임 id 생성이에요
-
-        val connectKey = FishUtil.hash(FishUtil.uuid(gameId))//랜덤 클라이언트->서버 커넥트 키 생성이에요
-
-        val gameSetupBoddari = GameSetupBoddari(gameId,newPlayers,mode, map, connectKey)
-        logger.info { "try make session to ${target.serverUrl}/makesession" }
-        logger.info { gameSetupBoddari.toString() }
-
-        try {
-
-            val body = Json.encodeToString(gameSetupBoddari)
-
-            logger.debug { body }
-            val res = webClient.post()
-                .uri("${target.serverUrl}/makesession")
-                .accept(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(String::class.java)
-                .doOnSuccess{res->//res : 서버의 session key(uint16) toString 값
-                    println(res)
-                    val newSession = Session(
-                        gameId = gameId,
-                        runningOn = target,
-                    )
-                    val data = MatchFoundDto(gameId, connectKey
-                        ,res, newSession.runningOn.serverUrl, map, Players.map { p: Player-> ClientNewPlayerDto.from(p) })
-                    val playerNotifyDto = Json.encodeToString(
-                        WsEventDto(
-                            MatchWsEventType.MatchFound, 
-                            Json.encodeToJsonElement(data))
-                    )
-                    for(p in Players){
-
-                        val playerWs = matchWebsocketRegister.get(p.key);
-
-
-                        if (playerWs?.isOpen == true)
-                        {
-                            println("containing ${p.id}")
-                            newSession.playerLists.put(p.key, p)
-                            println(playerWs.attributes[SessionAttributesEnum.userId.value])
-                        }
-                        else {
-
-                            throw PlayerNotFoundException()
-                        }
-                    }
-                    for(p in Players){
-                        val playerWs = matchWebsocketRegister.get(p.key);
-                        playerWs?.sendMessage(TextMessage(playerNotifyDto))
-                        playerWs?.attributes?.set("sessionId", gameId)
-                        matchQueueManager.cancel(p.key);
-                    }
-                    target.session.add(newSession)
-                    GameSessionHolder.putSession(newSession)
-                }
-                .doOnError {
-                    logger.error(it) { "Error while making session" }
-                    throw it
-                }
-                .subscribe()
-
-        } catch (e: WebClientResponseException) {
-            println("Match creation failed: ${e.statusCode} - ${e.responseBodyAsString}")
-            return null
+        val newSession = Session(gameId,target,matchWebsocketRegister)
+        gameSessionHolder.putSession(newSession)
+        newSession.init(mode,map)
+        for(player in players) {
+            newSession.inputPlayer(player)
         }
-        catch (e:Exception){
-            logger.info{ e.toString() }
-            logger.error(e) { "Error while making session" }
+        val connectKey = FishUtil.hash(FishUtil.uuid(newSession.gameId))//랜덤 클라이언트->데디케이티드 서버 커넥트 키 생성이에요
+        newSession.playerServerConnectKey = connectKey
 
-            return null
+        // 이미 배정된 player.team 값을 기준으로 플레이어들을 그룹화
+        val playersByTeam = players.groupBy { it.team }
+
+        //픽 마감 시간 계산 (현재 시간 밀리초 + 타임아웃 초 단위 * 1000)
+        val pickEndTimeMillis = Instant.now().toEpochMilli() + (newSession.pickFlowTimeoutSeconds * 1000L)
+        
+        //플레이어 개별 순회하며 본인 팀 정보만 전송
+        for (p in players) {
+            // 본인과 같은 팀 번호를 가진 플레이어 리스트를 가져와서 ClientNewPlayerDto로 변환
+            val sameTeamPlayers = playersByTeam[p.team] ?: emptyList()
+            val teamDtoList = sameTeamPlayers.map { AnotherPlayerInfoDto.from(it) }
+
+            val data = MatchFoundDto(
+                gameId = newSession.gameId,
+                gameMode = mode.name,
+                teamInfo = p.team,        // 본인의 팀 번호 전달
+                map = map.name,
+                teamPlayers = teamDtoList, // 자신이 속한 팀의 플레이어들만 포함
+                pickEndTime = pickEndTimeMillis
+            )
+
+            val playerNotifyDto = Json.encodeToString(
+                WsEventDto(
+                    MatchWsEventType.MatchFound,
+                    Json.encodeToJsonElement(data)
+                )
+            )
+
+            val playerWs = matchWebsocketRegister.get(p.key)
+            playerWs?.sendMessage(TextMessage(playerNotifyDto))
+            matchQueueManager.cancel(p.key)
+            matchWebsocketRegister.get(p.key)?.attributes?.set(SessionAttributesEnum.sessionId.value, newSession.gameId)
+
         }
+        val delaySeconds = newSession.pickFlowTimeoutSeconds
+        val executeTime = (Clock.System.now() + delaySeconds.seconds).toJavaInstant()
+
+        logger.info { "${delaySeconds}초 뒤 세션 생성 스케줄링 등록 완료. GameID: ${newSession.gameId}" }
+
+        newSession.sessionCreationTask = taskScheduler.schedule({
+            try {
+                logger.info { "픽 타임 종료! 데디케이티드 서버에 세션 생성을 요청합니다. GameID: ${newSession.gameId}" }
+                makeSessionOnDedicatedServer(newSession)
+            } catch (e: Exception) {
+                logger.error(e) { "스케줄링된 세션 생성 작업 실패" }
+            }
+        }, executeTime)
+
         return true;
     }
 
@@ -195,11 +258,14 @@ class MatchService(
     }
 
     /**
-     * todo: 서버 단 미구현 * 엔드포인트 미존재
+     * todo: 데디케이티드 서버 단 미구현 * 엔드포인트 미존재
      * 닷지됐을때 서버 정리를 위한 함수
      */
     fun dodgeGame(target:Dedicated, gameId: String){
         try {
+            val session = gameSessionHolder.getSession(gameId)
+            val res: Boolean = session?.dodgeGame()?:false
+            if(!res) return
             webClient.post()
                 .uri("${target.serverUrl}/dodgeGame")
                 .bodyValue(gameId)
@@ -207,13 +273,12 @@ class MatchService(
                 .retrieve()
                 .bodyToMono(String::class.java)
                 .doOnError {
-                    logger.error(it) { "Error while making session" }
-                    throw it
+                    logger.error(it) { "Error while making session11, message:${it.message}" }
                 }
                 .subscribe()
         }
         catch (ex:Exception) {
-            logger.error(ex) { "Error while making session" }
+            logger.error(ex) { "Error while making session22" }
         }
     }
 
@@ -222,3 +287,4 @@ class MatchService(
         return session.attributes["userId"].toString()
     }
 }
+

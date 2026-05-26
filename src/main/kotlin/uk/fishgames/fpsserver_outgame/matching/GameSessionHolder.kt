@@ -1,25 +1,31 @@
 package uk.fishgames.fpsserver_outgame.matching
 
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import uk.fishgames.fpsserver_outgame.dedicate_server.Session
 import java.util.concurrent.ConcurrentHashMap
 
 @Component
-object GameSessionHolder{
+class GameSessionHolder {
     val runningSessions = ConcurrentHashMap<String, Session>()
-    fun putSession(session: Session){
-        runningSessions.set(session.gameId,session)
+
+    fun putSession(session: Session) {
+        runningSessions[session.gameId] = session
     }
-    fun deleteSession(session: Session){
+
+    fun deleteSession(session: Session) {
         runningSessions.remove(session.gameId)
     }
 
-    /**
-     * todo:세션들 10초에 한번 순회하면서 상태 체크 등 하는 함수
-     */
-    fun tick(){
-        for(i in runningSessions.values){
-            i.tick()
+    fun getSession(sessionId: String): Session? {
+        return runningSessions[sessionId]
+    }
+
+    //10초에 한번 세션 돌면서 확인
+    @Scheduled(fixedRate = 10000)
+    fun tick() {
+        for (session in runningSessions.values) {
+            session.tick()
         }
     }
 }

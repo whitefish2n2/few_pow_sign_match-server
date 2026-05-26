@@ -1,7 +1,8 @@
 package uk.fishgames.fpsserver_outgame.matching.dto
 
 enum class MapEnum {
-    Test,
+    Test ,
     Haven,
+
 }
 data class MapId(val id: Int, val name: String);

@@ -42,7 +42,7 @@ class AuthController(
         service.signUp(info)
 
         val r = SignInDto(info.id,info.password)
-        val res = service.signIn(r);
+        val res = service.signIn(r)
 
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse<signInResponseDto>(ApiResponseCode.SignUpSuccess.code,"Sign Up Request Success. return auto login information",res))
     }

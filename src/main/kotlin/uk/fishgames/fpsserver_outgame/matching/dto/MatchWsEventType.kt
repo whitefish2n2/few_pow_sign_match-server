@@ -7,17 +7,23 @@ enum class MatchWsEventType {
 
     PickCharacter,
     PickCharacterTemporary,
-    GetPickInformation,
+    GetGameTeamPlayerInformation,
+    Cancel,
 
     //server->client
+    JoinLobby,
     Pong,
     EnsureEnqueueMatch,
     MatchFound,
+    Dodged,
+    StartMatch,
     NotifyCharacterChanged,
     NotifyCharacterPicked,
     PickCharacterFailed,
     PickCharacterSuccess,
+    GameInformation,
+    CancelSuccess,//Cancel의 성공 응답
 
-    Cancel,
+
 
 }

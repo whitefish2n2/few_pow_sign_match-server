@@ -108,6 +108,10 @@ class AuthService(
         }
     }
 
+    fun getPlayerPrivateInformation(userId: String){
+
+    }
+
     private fun createRefreshToken(info: PlayerDataEntity): String {
         try {
             val uuid = FishUtil.uuid(info.id)
@@ -125,6 +129,8 @@ class AuthService(
             throw e
         }
     }
+
+
 
     private fun isValidSignUpId(id: String): Boolean {
         return !playerRepo.existsById(id)

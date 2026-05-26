@@ -8,14 +8,14 @@ import java.util.concurrent.ConcurrentHashMap
 class MatchWebsocketRegistry {
     private val sessions = ConcurrentHashMap<String, WebSocketSession>()
 
-    fun register(playerId: String, session: WebSocketSession) {
-        sessions[playerId] = session
+    fun register(playerKey: String, session: WebSocketSession) {
+        sessions[playerKey] = session
     }
 
-    fun remove(playerId: String) {
+    fun remove(playerKey: String) {
 
-        val o = sessions.remove(playerId)
+        val o = sessions.remove(playerKey)
     }
 
-    fun get(playerId: String): WebSocketSession? = sessions[playerId]
+    fun get(playerKey: String): WebSocketSession? = sessions[playerKey]
 }

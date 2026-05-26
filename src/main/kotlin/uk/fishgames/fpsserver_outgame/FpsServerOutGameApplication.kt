@@ -18,10 +18,4 @@ var dedicatedClients = ConcurrentHashMap<String, Dedicated>()
 
 fun main(args: Array<String>) {
 	runApplication<FpsServerOutGameApplication>(*args)
-	val job = CoroutineScope(Dispatchers.Default).launch {
-		while (isActive) {
-			GameSessionHolder.tick()
-			delay(1000)
-		}
-	}
 }

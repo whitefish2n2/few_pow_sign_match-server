@@ -6,6 +6,7 @@ import org.springframework.http.server.ServletServerHttpRequest
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.WebSocketHandler
 import org.springframework.web.socket.server.HandshakeInterceptor
+import uk.fishgames.fpsserver_outgame.matching.dto.SessionAttributesEnum
 import uk.fishgames.fpsserver_outgame.security.JwtUtil
 import java.lang.Exception
 
@@ -32,7 +33,7 @@ class AuthHandshakeInterceptor(
                 return false
             }
             val userId = jwtUtil.getUserIdFromToken(token)
-            attributes["userId"] = userId
+            attributes[SessionAttributesEnum.userId.value] = userId
             return true
         }catch(e: Exception){
             return false

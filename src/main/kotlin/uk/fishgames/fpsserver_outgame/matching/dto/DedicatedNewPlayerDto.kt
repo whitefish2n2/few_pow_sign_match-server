@@ -7,12 +7,14 @@ import kotlinx.serialization.Serializable
 data class DedicatedNewPlayerDto (
     val id: String,
     val name: String,
-    val key:String,
+    val key: String,
+    val team:Int,
+    val characterId: String?,
 
 ){
     companion object{
         fun from(p: Player): DedicatedNewPlayerDto{
-            return DedicatedNewPlayerDto(p.id,p.name,p.key)
+            return DedicatedNewPlayerDto(p.id,p.name,p.key,p.team, p.characterId )
         }
     }
 }
