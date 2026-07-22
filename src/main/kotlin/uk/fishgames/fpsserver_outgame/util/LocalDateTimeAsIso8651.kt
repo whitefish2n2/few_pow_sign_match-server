@@ -1,3 +1,5 @@
+package uk.fishgames.fpsserver_outgame.util
+
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*

@@ -3,7 +3,6 @@ package uk.fishgames.fpsserver_outgame.dedicate_server
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
-import uk.fishgames.fpsserver_outgame.AlreadyExistDedicatedServerException
 import uk.fishgames.fpsserver_outgame.FishUtil
 import uk.fishgames.fpsserver_outgame.DediSecretKeyNotMatchedException
 import uk.fishgames.fpsserver_outgame.dedicate_server.dto.DedicateRegistResponseDto
@@ -21,12 +20,12 @@ class DedicatedRegistService {
                 throw DediSecretKeyNotMatchedException()
             }
             if (dedicatedClients.get(serverId) == null) {
-                dedicatedClients.put(serverId, Dedicated(serverId, dedicate.ip, dedicate.sessions, dedicate.url))
+                dedicatedClients.put(serverId, Dedicated(serverId, dedicate.ip, dedicate.sessions, dedicate.http_url, dedicate.udp_port))
                 println("new dedicate Server is on the rail id: ${serverId} ip: ${dedicate.ip}")
             } else {
                 println("Invalid Dedicated Server Create Request Detected.")
                 println(dedicatedClients.get(serverId))
-                dedicatedClients[serverId] = Dedicated(serverId, dedicate.ip, dedicate.sessions, dedicate.url)
+                dedicatedClients[serverId] = Dedicated(serverId, dedicate.ip, dedicate.sessions, dedicate.http_url, dedicate.udp_port)
                 //TODO: 키 겹치는 문제 해결
             }
 

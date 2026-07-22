@@ -36,8 +36,8 @@ class Session(val gameId:String, val runningOn:Dedicated,private val matchWebsoc
     var playTime:LocalDateTime = LocalDateTime.now()
     val pickFlowInformation: PickCharacterInformation = PickCharacterInformation(Instant.now())
     val pickFlowTimeoutSeconds: Long = 75
-    var playerServerConnectKey:String = ""///유저가 데디케이티드 서버로 커넥트할때 사용할 키
     var sessionCreationTask: ScheduledFuture<*>? = null//픽 타임 이후 게임 시작 스케쥴 태스크
+    var onGameStartReady: ((Session) -> Unit)? = null
 
     private val lock = ReentrantLock()
 
@@ -54,14 +54,7 @@ class Session(val gameId:String, val runningOn:Dedicated,private val matchWebsoc
      * GameSessionHolder에 의해 1초에 한번 실행되는 Tick
      */
     fun tick(){
-        if(status == SessionStatus.Picking && isPickFlowTimedOut()){
-            if(instantlyLockInAllPlayers()){
-                StartGamePlayFlow()
-            }
-            else{
-                dodgeGame()
-            }
-        }
+
     }
     fun startPickFlow(){
         status = SessionStatus.Picking
@@ -72,6 +65,10 @@ class Session(val gameId:String, val runningOn:Dedicated,private val matchWebsoc
         if(status == SessionStatus.Picking){
             status = SessionStatus.Playing;
             playTime = LocalDateTime.now()
+
+            sessionCreationTask?.cancel(false)
+            sessionCreationTask = null
+            onGameStartReady?.invoke(this)
         }
     }
     fun isPickFlowTimedOut(): Boolean {
@@ -156,7 +153,7 @@ class Session(val gameId:String, val runningOn:Dedicated,private val matchWebsoc
     }
 
     //모든 플레이어들을 LockIn하고(hover로 선택한 경우) 성공여부를 반환
-    private fun instantlyLockInAllPlayers():Boolean {
+    fun instantlyLockInAllPlayers():Boolean {
         lock.lock()//경쟁 상태 차단
         try{
             for(p in playerLists.values){

@@ -2,7 +2,7 @@ package uk.fishgames.fpsserver_outgame.UserInformation
 
 import kotlinx.serialization.Serializable
 import uk.fishgames.fpsserver_outgame.UserInformation.Entity.PlayerStaticDataEntity
-import uk.fishgames.fpsserver_outgame.auth.Entity.PlayerDataEntity
+import uk.fishgames.fpsserver_outgame.util.LocalDateTimeAsIso8601
 import java.time.LocalDateTime
 
 @Serializable
