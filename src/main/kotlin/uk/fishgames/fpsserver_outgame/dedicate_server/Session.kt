@@ -125,8 +125,8 @@ class Session(val gameId:String, val runningOn:Dedicated,private val matchWebsoc
         try{
             val p = playerLists[sessionUserKey] ?: return null
 
-            //이미 누가 고른 캐릭터인지 확인
-            val isTaken = playerLists.values.any { it.key != sessionUserKey && it.isLockedIn && it.characterId == characterId }
+            //같은 팀 내에서 이미 누가 고른 캐릭터인지 확인
+            val isTaken = playerLists.values.any { it.key != sessionUserKey && it.isLockedIn && it.characterId == characterId && it.team == p.team }
             if (isTaken) return null
 
             //확정
@@ -160,8 +160,8 @@ class Session(val gameId:String, val runningOn:Dedicated,private val matchWebsoc
                 if(p.characterId.isNullOrEmpty()) return false;
                 if(p.isLockedIn) continue
 
-                //이미 누가 고른 캐릭터인지 확인
-                val isTaken = playerLists.any { it.key != p.key && it.value.isLockedIn && it.value.characterId == p.characterId }
+                //같은 팀 내에서 이미 누가 고른 캐릭터인지 확인
+                val isTaken = playerLists.any { it.key != p.key && it.value.isLockedIn && it.value.characterId == p.characterId && it.value.team == p.team }
                 if (isTaken) return false
                 val notifyDto = CharacterPickNotifyDto(p.id, p.characterId!!, null)
                 val broadCastDto = WsEventDto(
